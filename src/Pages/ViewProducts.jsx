@@ -7,10 +7,13 @@ import uploadimg from '../Assets/Upload-PNG.png'
 
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { addProductAPI, deleteAProductAPI, viewProductAPI } from '../Services/allAPI';
+import { addProductAPI, deleteAProductAPI, editAProductAPI, viewAProductAPI, viewProductAPI } from '../Services/allAPI';
 import { BASE_URL } from '../Services/baseURL';
 
 function ViewProducts() {
+ const [editMode, setEditMode] = useState(false);
+  const [editProductId, setEditProductId] = useState(null);
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // const [filteredProducts,setFilteredProducts] = useState()
   const [initialProducts, setInitialProducts] = useState([]);
@@ -25,6 +28,10 @@ function ViewProducts() {
   const [products, setProducts] = useState({
     productname: "", category: "", description: "", productimg: ""
   })
+
+  const [editProduct, setEditProduct] = useState({
+    productname: "", category: "", description: "", productimg: ""
+  })
   const [preview, setPreview] = useState("")
   // console.log(products);
 
@@ -37,14 +44,13 @@ function ViewProducts() {
     const result = await viewProductAPI()
     setViewAllProducts(result.data)
   }
-
-  console.log(viewAllProducts);
+  console.log(viewAllProducts,"LM");
 
   useEffect(() => {
     setInitialProducts(viewAllProducts);
   }, [viewAllProducts]);
 
-  console.log(initialProducts, "ll");
+  // console.log(initialProducts, "ll");
 
 
   useEffect(() => {
@@ -128,30 +134,48 @@ function ViewProducts() {
         theme: "colored",
       });
     } else {
-      const reqBody = new FormData()
-      reqBody.append("productname", productname)
-      reqBody.append("category", category)
-      reqBody.append("description", description)
-      reqBody.append("productimg", productimg)
-
-      const reqHeader = {
-        "Content-Type": "multipart/form-data"
-      }
-      const result = await addProductAPI(reqBody, reqHeader)
-
-      if (result.status === 200) {
-        toast.success('Product Added', {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-          theme: "colored",
-        });
-        handleViewAllProducts()
-        handleClose()
+      if (editMode) {
+        // Editing existing product
+        const reqBody = new FormData();
+        reqBody.append("productname", productname);
+        reqBody.append("category", category);
+        reqBody.append("description", description);
+        reqBody.append("productimg", productimg);
+  
+        const reqHeader = {
+          "Content-Type": "multipart/form-data"
+        };
+  
+        const result = await editAProductAPI(editProductId, reqBody, reqHeader);
+  
+        if (result.status === 200) {
+          toast.success('Product Edited', {
+            // ... toast configuration ...
+          });
+          handleViewAllProducts();
+          handleClose();
+        }
+      } else {
+        // Adding a new product
+        const reqBody = new FormData();
+        reqBody.append("productname", productname);
+        reqBody.append("category", category);
+        reqBody.append("description", description);
+        reqBody.append("productimg", productimg);
+  
+        const reqHeader = {
+          "Content-Type": "multipart/form-data"
+        };
+  
+        const result = await addProductAPI(reqBody, reqHeader);
+  
+        if (result.status === 200) {
+          toast.success('Product Added', {
+            // ... toast configuration ...
+          });
+          handleViewAllProducts();
+          handleClose();
+        }
       }
     }
   }
@@ -159,29 +183,53 @@ function ViewProducts() {
 
 
   useEffect(() => {
-
-  })
-
-  useEffect(() => {
     if (products.productimg) {
-      setPreview(URL.createObjectURL(products.productimg))
+      try {
+        setPreview(URL.createObjectURL(products.productimg));
+      } catch (error) {
+        console.error('Error creating object URL:', error);
+      }
     }
-  }, [products.productimg])
+  }, [products.productimg]);
   // add image section
 
   const handleDelete = async (id) => {
     setShowDeleteModal(true);
-    setProductsToDeleteId(id);
-    // const result = await deleteAProductAPI(id)
-    // console.log(result)
-    // handleViewAllProducts()
+    // setProductsToDeleteId(id);
+    const result = await deleteAProductAPI(id)
+    console.log(result)
+    handleViewAllProducts()
   }
 
 
 
-  const handleEdit = () => {
+  const handleEdit = async (id) => {
+    const productToEdit = viewAllProducts.find((item) => item._id === id);
+    const imageFile = await fetchImageFile(productToEdit.productimg);
+    setEditMode(true);
+    setProducts({
+      productname: productToEdit.productname,
+      category: productToEdit.category,
+      description: productToEdit.description,
+      productimg: imageFile
+    });
+    console.log(productToEdit,"Productto edit");
+    setPreview(`${BASE_URL}/uploads/${productToEdit.productimg}`);
+    setEditProductId(id);
+    handleShow();
+  };
 
-  }
+  const fetchImageFile = async (filename) => {
+    try {
+      const response = await fetch(`${BASE_URL}/uploads/${filename}`);
+      const blob = await response.blob();
+      const file = new File([blob], filename, { type: blob.type });
+      return file;
+    } catch (error) {
+      console.error('Error fetching image file:', error);
+      return null;
+    }
+  };  
 
   return (
     <>
@@ -251,10 +299,10 @@ function ViewProducts() {
                 <div className='product-list-image'>
                   <img src={item ? `${BASE_URL}/uploads/${item?.productimg}` : productimage} alt="Image" />
                 </div>
-                <div className='product-list-content'>
+                <div className='product-list-content' style={{overflow:'hidden'}}>
                   <h2>{item.productname}</h2>
                   <h3>{item.category}</h3>
-                  <div><p style={{ width: "100%", overflowWrap: 'break-word' }}>{item.description} </p></div>
+                  <div ><p>{item.description} </p></div>
                 </div>
               </div>
               <div className='handleUpdate-container'>
@@ -293,9 +341,9 @@ function ViewProducts() {
                   <div className='add-product-img'><img src={preview ? preview : uploadimg} alt="product_image" /></div>
                 </label>
                 <div className='add-product-fields'>
-                  <input onChange={(e) => setProducts({ ...products, productname: e.target.value })} type="text" placeholder='Product Name' />
-                  <input onChange={(e) => setProducts({ ...products, category: e.target.value })} type="text" placeholder='Category' />
-                  <textarea onChange={(e) => setProducts({ ...products, description: e.target.value })} name="" id="" cols="30" rows="4" placeholder='Description'></textarea>
+                  <input value={products.productname} onChange={(e) => setProducts({ ...products, productname: e.target.value })} type="text" placeholder='Product Name' />
+                  <input value={products.category} onChange={(e) => setProducts({ ...products, category: e.target.value })} type="text" placeholder='Category' />
+                  <textarea  maxLength={50}  value={products.description} onChange={(e) => setProducts({ ...products, description: e.target.value })} name="" id="" cols="30" rows="4" placeholder='Description'></textarea>
                 </div>
               </div>
             </Modal.Body>
@@ -305,9 +353,11 @@ function ViewProducts() {
               </Button>
               <Button onClick={handleSubmit} variant="primary">Save</Button>
             </Modal.Footer>
-
           </Modal>
         </>
+
+        {/* Edit Modal */}
+
 
       </div>
       <ToastContainer />
