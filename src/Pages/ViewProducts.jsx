@@ -153,6 +153,7 @@ function ViewProducts() {
             // ... toast configuration ...
           });
           handleViewAllProducts();
+          setEditMode(false);
           handleClose();
         }
       } else {
