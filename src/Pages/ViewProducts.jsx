@@ -12,6 +12,7 @@ import { BASE_URL } from '../Services/baseURL';
 
 function ViewProducts() {
   const [editMode, setEditMode] = useState(false);
+  const [viewMode, setViewMode] = useState(false);
   const [editProductId, setEditProductId] = useState(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -98,6 +99,7 @@ function ViewProducts() {
       productname: "", category: "", description: "", productimg: ""
     })
     setShow(false);
+    setViewMode(false);
   }
   const handleShow = () => setShow(true);
   // Modal end____________________________
@@ -214,7 +216,7 @@ function ViewProducts() {
       description: productToEdit.description,
       productimg: imageFile
     });
-    console.log(productToEdit, "Productto edit");
+    console.log(productToEdit, "Product to edit");
     setPreview(`${BASE_URL}/uploads/${productToEdit.productimg}`);
     setEditProductId(id);
     handleShow();
@@ -231,6 +233,21 @@ function ViewProducts() {
       return null;
     }
   };
+
+  const viewProductDetails = async (id) => {
+    const productToView = viewAllProducts.find((item) => item._id === id);
+    const imageFile = await fetchImageFile(productToView.productimg);
+    setViewMode(true)
+    setProducts({
+      productname: productToView.productname,
+      category: productToView.category,
+      description: productToView.description,
+      productimg: imageFile
+    });
+    setPreview(`${BASE_URL}/uploads/${productToView.productimg}`);
+    handleShow();
+
+  }
 
   return (
     <>
@@ -305,7 +322,14 @@ function ViewProducts() {
                     <div className='product-list-content' style={{ overflow: 'hidden' }}>
                       <h2>{item.productname}</h2>
                       <h3>{item.category}</h3>
-                      <div ><p>{item.description} </p></div>
+                      <div ><p>{item.description.length > 50 ? (
+                        <>
+                          {item.description.substring(0, 50)}...<a className='moretextstyle' onClick={() => viewProductDetails(item._id)}> more</a>
+                        </>
+
+                      ) : `${item.description}`} </p>
+                      </div>
+
                     </div>
                   </div>
                   <div className='handleUpdate-container'>
@@ -323,8 +347,9 @@ function ViewProducts() {
             </div>
           ) : (<h5><center>No Products Found</center></h5>)
         }
+        
 
-        <>
+        <div>
           <Modal
             show={show}
             onHide={handleClose}
@@ -332,30 +357,46 @@ function ViewProducts() {
             keyboard={false}
             centered
           >
-            <Modal.Header closeButton>
-              <Modal.Title>Add New Product</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className='add-project-modal'>
-                <label>
-                  <input type="file" style={{ display: 'none' }} onChange={e => setProducts({ ...products, productimg: e.target.files[0] })} />
-                  <div className='add-product-img'><img src={preview ? preview : uploadimg} alt="product_image" /></div>
-                </label>
-                <div className='add-product-fields'>
-                  <input value={products.productname} onChange={(e) => setProducts({ ...products, productname: e.target.value })} type="text" placeholder='Product Name' />
-                  <input value={products.category} onChange={(e) => setProducts({ ...products, category: e.target.value })} type="text" placeholder='Category' />
-                  <textarea maxLength={50} value={products.description} onChange={(e) => setProducts({ ...products, description: e.target.value })} name="" id="" cols="30" rows="4" placeholder='Description'></textarea>
+            <div class="modal-content">
+              <Modal.Header closeButton>
+                {
+                  viewMode ? <Modal.Title>Product Details</Modal.Title> : <Modal.Title>Add New Product</Modal.Title>
+                }
+              </Modal.Header>
+              <Modal.Body>
+                <div className='add-project-modal'>
+                  <label>
+                    <input type="file" style={{ display: 'none' }} onChange={e => setProducts({ ...products, productimg: e.target.files[0] })} />
+                    <div className='add-product-img'><img src={preview ? preview : uploadimg} alt="product_image" /></div>
+                  </label>
+                  <div className='add-product-fields'>
+                    {viewMode ? <input readOnly value={products.productname} onChange={(e) => setProducts({ ...products, productname: e.target.value })} type="text" placeholder='Product Name' /> :
+                      <input value={products.productname} onChange={(e) => setProducts({ ...products, productname: e.target.value })} type="text" placeholder='Product Name' />
+                    }
+                    {viewMode ? <input readOnly value={products.category} onChange={(e) => setProducts({ ...products, category: e.target.value })} type="text" placeholder='Category' /> :
+                      <input value={products.category} onChange={(e) => setProducts({ ...products, category: e.target.value })} type="text" placeholder='Category' />
+                    }
+                    {
+                      viewMode ? <textarea readOnly maxLength={200} value={products.description} onChange={(e) => setProducts({ ...products, description: e.target.value })} name="" id="" cols="30" rows="7" placeholder='Description'></textarea> :
+                        <textarea maxLength={200} value={products.description} onChange={(e) => setProducts({ ...products, description: e.target.value })} name="" id="" cols="30" rows="4" placeholder='Description'></textarea>
+                    }
+                  </div>
                 </div>
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} variant="primary">Save</Button>
-            </Modal.Footer>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={handleClose}>
+                  Cancel
+                </Button>
+                {
+                  !viewMode && <Button onClick={handleSubmit} variant="primary">Save</Button>
+                }
+
+              </Modal.Footer>
+
+            </div>
+
           </Modal>
-        </>
+        </div>
 
         {/* Edit Modal */}
 
